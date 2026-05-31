@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò Chơi Ôn Tập Carbohydrate (Hóa 12)</title>
+    <!-- Tải Tailwind CSS để tạo giao diện đẹp và responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Định nghĩa các màu chủ đạo */
+            --color-primary: #3b82f6; /* Blue-500 */
+            --color-correct: #10b981; /* Emerald-500 - Xanh lá cây cho phản hồi đúng */
+            --color-incorrect: #ef4444; /* Red-500 - Đỏ cho phản hồi sai */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Thay đổi màu nền thành gradient sinh động */
+            background-image: linear-gradient(135deg, #a7f3d0 0%, #a5b4fc 100%); /* Teal-200 to Indigo-300 */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* --- THEME COLORS CHO CÁC CHẤT --- */
+        .theme-glucose { --target-color: #3b82f6; --target-color-rgb: 59, 130, 246; } /* Blue */
+        .theme-fructose { --target-color: #14b8a6; --target-color-rgb: 20, 184, 166; } /* Teal */
+        .theme-saccharose { --target-color: #f59e0b; --target-color-rgb: 245, 158, 11; } /* Amber */
+        .theme-starch { --target-color: #9333ea; --target-color-rgb: 147, 51, 234; } /* Violet/Purple */
+        .theme-cellulose { --target-color: #4ade80; --target-color-rgb: 74, 222, 128; } /* Emerald/Green */
+        
+        /* Custom styling for drop targets (có màu nền mờ và đậm dần xuống dưới) */
+        .drop-target {
+            transition: all 0.3s ease-in-out;
+            min-height: 250px;
+            border-color: var(--target-color) !important;
+            
+            /* Định nghĩa border mặc định (dashed) và tăng độ dày viền dưới */
+            border-style: dashed !important; 
+            border-width: 4px !important; 
+            border-bottom-width: 8px !important; 
+            
+            /* SỬ DỤNG GRADIENT TẠO MÀU NỀN ẤN TƯỢNG ĐẬM DẦN */
+            background: linear-gradient(
+                to bottom,
+                rgba(var(--target-color-rgb), 0.05), /* Rất nhạt ở trên cùng (0% độ mờ) */
+                rgba(var(--target-color-rgb), 0.1) 70%, /* Giữ độ nhạt cho hầu hết diện tích (70% độ mờ) */
+                rgba(var(--target-color-rgb), 0.4) 100% /* Ấn tượng, đậm dần ở phần dưới cùng (40% độ mờ) */
+            );
+            background-color: #ffffff; /* Fallback */
+        }
+
+        /* STYLE CHO TARGET HIỆN TẠI (ACTIVE) */
+        .active-target {
+            border-style: solid !important; /* Chuyển thành solid khi active */
+            border-width: 5px !important;
+            box-shadow: 0 0 20px rgba(var(--target-color-rgb), 0.8) !important;
+            animation: pulse-border 1.5s infinite;
+        }
+
+        /* STYLE CHO TARGET KHÔNG HOẠT ĐỘNG (INACTIVE) */
+        .inactive-target {
+            opacity: 0.5;
+            pointer-events: none; 
+            filter: grayscale(80%);
+            border-style: solid !important;
+            border-width: 1px !important;
+            background-color: #f3f4f6 !important;
+        }
+        
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0px rgba(var(--target-color-rgb), 0.5); }
+            70% { box-shadow: 0 0 0 10px rgba(var(--target-color-rgb), 0); }
+            100% { box-shadow: 0 0 0 0px rgba(var(--target-color-rgb), 0); }
+        }
+
+        .drag-over {
+            box-shadow: 0 0 15px rgba(var(--target-color-rgb), 0.5);
+            background-color: rgba(var(--target-color-rgb), 0.2) !important; 
+            opacity: 1; 
+        }
+        
+        /* CẬP NHẬT STYLE CHO DRAGGABLE ITEM */
+        .draggable-item {
+            cursor: grab;
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.3s;
+            /* Thêm hiệu ứng hover */
+            border-left: 5px solid; 
+            border-color: rgba(0,0,0,0.1); /* Màu viền trái mặc định */
+        }
+        .draggable-item:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            border-left: 5px solid var(--target-color, #3b82f6); /* Sáng viền trái khi hover */
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        /* Feedback Styles... (giữ nguyên) */
+        .correct-feedback {
+            background-color: var(--color-correct) !important;
+            color: white !important;
+            animation: flashGreen 0.5s ease-out;
+        }
+        .incorrect-feedback {
+            background-color: var(--color-incorrect) !important;
+            color: white !important;
+            animation: flashRed 0.5s ease-out;
+        }
+        
+        /* Style for the finished item in the target area */
+        .dropped-item {
+            margin: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            background-color: #d1fae5; /* Green-100 */
+            color: #065f46; /* Green-900 */
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container" class="container bg-white rounded-xl shadow-2xl p-6 md:p-10 border-t-8 border-blue-500">
+        <!-- HEADER VÀ THÔNG TIN -->
+        <header class="flex justify-between items-start mb-6 pb-4 border-b">
+            <h1 class="text-3xl font-extrabold text-gray-800">Trò Chơi Kéo Thả: Ôn Tập Carbohydrate</h1>
+            <div class="text-right text-sm">
+                <p class="font-semibold text-gray-600">Người thiết kế:</p>
+                <p class="text-blue-600 font-bold">Thầy Hồ Cang – CVA</p>
+            </div>
+        </header>
+
+        <!-- MÀN HÌNH NHẬP THÔNG TIN (START SCREEN) -->
+        <div id="start-screen" class="flex flex-col items-center justify-center p-8">
+            <div class="bg-indigo-50 p-6 rounded-lg shadow-inner w-full max-w-sm">
+                <h2 class="text-2xl font-bold text-indigo-700 mb-4">Thông tin người chơi</h2>
+                <div class="space-y-4">
+                    <input type="text" id="player-name" placeholder="Nhập Tên của bạn" class="w-full p-3 border border-indigo-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" id="player-class" placeholder="Nhập Lớp (ví dụ: 12A1)" class="w-full p-3 border border-indigo-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <button onclick="startGame()" class="mt-6 w-full py-3 bg-blue-600 text-white font-bold text-lg rounded-lg hover:bg-blue-700 transition duration-200 shadow-md">
+                    BẮT ĐẦU TRÒ CHƠI
+                </button>
+                <p id="error-message" class="text-red-500 mt-3 hidden text-center">Vui lòng nhập đầy đủ Tên và Lớp.</p>
+            </div>
+        </div>
+
+        <!-- MÀN HÌNH CHÍNH CỦA TRÒ CHƠI -->
+        <div id="game-screen" class="hidden">
+            <!-- SCOREBOARD VÀ TIMER -->
+            <div class="flex flex-col md:flex-row justify-between items-center bg-gray-50 p-4 rounded-lg shadow-inner mb-6">
+                <div class="text-left text-sm font-medium mb-3 md:mb-0">
+                    <span id="player-info" class="text-indigo-700 font-bold text-base"></span>
+                </div>
+                <div class="flex space-x-6">
+                    <div class="text-center">
+                        <p class="text-gray-500">Điểm số:</p>
+                        <p id="score" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-gray-500">Thời gian:</p>
+                        <p id="timer" class="text-2xl font-bold text-red-600">00:00</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                <!-- KHU VỰC KÉO THẢ (5 TARGETS) -->
+                <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4">
+                    <!-- TARGETS -->
+                    <div id="target-glucose" data-target="glucose" class="drop-target theme-glucose p-4 rounded-xl shadow-lg flex flex-col items-center">
+                        <h3 class="text-xl font-bold text-blue-600 mb-3 border-b pb-2 w-full text-center">GLUCOSE</h3>
+                        <div class="target-items flex flex-wrap justify-center w-full min-h-[150px]">
+                            <!-- Dropped items go here -->
+                        </div>
+                    </div>
+
+                    <div id="target-fructose" data-target="fructose" class="drop-target theme-fructose p-4 rounded-xl shadow-lg flex flex-col items-center">
+                        <h3 class="text-xl font-bold text-teal-600 mb-3 border-b pb-2 w-full text-center">FRUCTOSE</h3>
+                        <div class="target-items flex flex-wrap justify-center w-full min-h-[150px]">
+                            <!-- Dropped items go here -->
+                        </div>
+                    </div>
+
+                    <div id="target-saccharose" data-target="saccharose" class="drop-target theme-saccharose p-4 rounded-xl shadow-lg flex flex-col items-center">
+                        <h3 class="text-xl font-bold text-amber-600 mb-3 border-b pb-2 w-full text-center">SACCHAROSE</h3>
+                        <div class="target-items flex flex-wrap justify-center w-full min-h-[150px]">
+                            <!-- Dropped items go here -->
+                        </div>
+                    </div>
+
+                    <div id="target-starch" data-target="starch" class="drop-target theme-starch p-4 rounded-xl shadow-lg flex flex-col items-center">
+                        <h3 class="text-xl font-bold text-purple-600 mb-3 border-b pb-2 w-full text-center">TINH BỘT</h3>
+                        <div class="target-items flex flex-wrap justify-center w-full min-h-[150px]">
+                            <!-- Dropped items go here -->
+                        </div>
+                    </div>
+                    
+                    <div id="target-cellulose" data-target="cellulose" class="drop-target theme-cellulose p-4 rounded-xl shadow-lg flex flex-col items-center">
+                        <h3 class="text-xl font-bold text-emerald-600 mb-3 border-b pb-2 w-full text-center">CELLULOSE</h3>
+                        <div class="target-items flex flex-wrap justify-center w-full min-h-[150px]">
+                            <!-- Dropped items go here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CÁC THUẬT NGỮ/KHÁI NIỆM CẦN KÉO (DRAGGABLES) -->
+                <div class="xl:col-span-1 bg-gray-100 p-4 rounded-xl shadow-inner max-h-[600px] overflow-y-auto">
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 border-b pb-2">Kéo thả các đặc điểm:</h3>
+                    <div id="draggable-list" class="flex flex-wrap justify-start content-start">
+                        <!-- Draggable items will be populated by JS here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- NÚT KẾT THÚC (CHỈ HIỂN THỊ KHI TẤT CẢ ĐÃ HOÀN THÀNH) -->
+            <div id="finish-button-container" class="mt-6 text-center hidden">
+                <button onclick="endGame(true)" class="py-3 px-8 bg-green-600 text-white font-bold text-xl rounded-lg hover:bg-green-700 transition duration-200 shadow-xl">
+                    HOÀN THÀNH VÀ XEM KẾT QUẢ
+                </button>
+            </div>
+        </div>
+
+        <!-- MÀN HÌNH KẾT QUẢ (END SCREEN) -->
+        <div id="end-screen" class="hidden flex flex-col items-center justify-center p-8 text-center">
+            <h2 class="text-4xl font-extrabold text-blue-600 mb-4">KẾT QUẢ CỦA BẠN</h2>
+            <div class="bg-white p-8 rounded-xl shadow-2xl border-t-4 border-green-500 w-full max-w-md">
+                <p id="final-player-info" class="text-xl font-semibold mb-4 text-gray-700"></p>
+                <div class="space-y-3">
+                    <p class="text-2xl font-bold text-gray-600">Điểm đạt được:</p>
+                    <p id="final-score" class="text-5xl font-extrabold text-green-600"></p>
+                    <p id="final-time" class="text-xl font-medium text-gray-500"></p>
+                </div>
+                <!-- Nút chơi lại -->
+                <button onclick="resetGame()" class="mt-8 py-3 px-10 bg-indigo-600 text-white font-bold text-lg rounded-lg hover:bg-indigo-700 transition duration-200 shadow-md">
+                    CHƠI LẠI
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let playerName = '';
+        let playerClass = '';
+        let score = 0;
+        let timerInterval;
+        let seconds = 0;
+        let totalDraggableItems = 0;
+        let droppedItemsCount = 0;
+        
+        const targetOrder = ['glucose', 'fructose', 'saccharose', 'starch', 'cellulose'];
+        let currentTargetIndex = 0;
+        let requiredItemCounts = {}; 
+        let droppedItemsInTarget = {}; 
+
+        // Các màu nền SINH ĐỘNG và ĐẬM NÉT cho các đặc điểm kéo thả (cấp độ 600-700 với chữ trắng)
+        const backgroundColors = [
+            'bg-blue-700 hover:bg-blue-600 text-white', 
+            'bg-teal-600 hover:bg-teal-500 text-white', 
+            'bg-pink-700 hover:bg-pink-600 text-white', 
+            'bg-yellow-600 hover:bg-yellow-500 text-white', 
+            'bg-indigo-700 hover:bg-indigo-600 text-white',
+            'bg-green-700 hover:bg-green-600 text-white',
+            'bg-purple-600 hover:bg-purple-500 text-white',
+            'bg-red-600 hover:bg-red-500 text-white'
+        ];
+
+        const correctSound = new AudioContext();
+        const incorrectSound = new AudioContext();
+
+        // Định nghĩa dữ liệu trò chơi: ID và đáp án đúng
+        const gameData = [
+            // GLUCOSE (4 items)
+            { id: 'item-1', text: 'Công thức $C_6H_{12}O_6$ (Monosaccharide)', answer: 'glucose' },
+            { id: 'item-2', text: 'Chứa nhóm aldehyde và 5 nhóm hydroxyl', answer: 'glucose' },
+            { id: 'item-3', text: 'Có khả năng tráng gương/tráng bạc', answer: 'glucose' },
+            { id: 'item-4', text: 'Tạo este 5 chức', answer: 'glucose' },
+
+            // FRUCTOSE (3 items)
+            { id: 'item-5', text: 'Đồng phân của Glucose', answer: 'fructose' },
+            { id: 'item-6', text: 'Chứa nhóm ketone và 5 nhóm hydroxyl', answer: 'fructose' },
+            { id: 'item-7', text: 'Là chất kết tinh, vị ngọt hơn đường mía', answer: 'fructose' },
+            
+            // SACCHAROSE (3 items)
+            { id: 'item-8', text: 'Là Disaccharide (Đường mía)', answer: 'saccharose' },
+            { id: 'item-9', text: 'Thủy phân tạo Glucose và Fructose', answer: 'saccharose' },
+            { id: 'item-10', text: 'Không có nhóm aldehyde tự do', answer: 'saccharose' },
+            
+            // TINH BỘT (3 items)
+            { id: 'item-11', text: 'Công thức $(C_6H_{10}O_5)_n$', answer: 'starch' },
+            { id: 'item-12', text: 'Phản ứng màu xanh tím với dung dịch Iot', answer: 'starch' },
+            { id: 'item-13', text: 'Thành phần gồm Amylose và Amylopectin', answer: 'starch' },
+            
+            // CELLULOSE (3 items)
+            { id: 'item-14', text: 'Thành phần chính tạo nên lớp màng tế bào thực vật', answer: 'cellulose' },
+            { id: 'item-15', text: 'Tạo tơ visco, tơ axetat', answer: 'cellulose' },
+            { id: 'item-16', text: 'Không tan trong nước ngay cả khi đun nóng', answer: 'cellulose' }
+        ];
+
+        totalDraggableItems = gameData.length;
+
+        // --- HÀM TÍNH TOÁN SỐ LƯỢNG CẦN THIẾT CHO MỖI CHẤT ---
+        function setupGameData() {
+            requiredItemCounts = {};
+            targetOrder.forEach(target => requiredItemCounts[target] = 0);
+            gameData.forEach(item => {
+                requiredItemCounts[item.answer] = (requiredItemCounts[item.answer] || 0) + 1;
+            });
+            // Khởi tạo số lượng item đã thả là 0 cho tất cả target
+            targetOrder.forEach(target => droppedItemsInTarget[target] = 0);
+        }
+
+        // --- HÀM CẬP NHẬT TRẠNG THÁI CÁC Ô ĐÍCH (ACTIVE/INACTIVE) ---
+        function updateTargetStates() {
+            const currentTargetId = targetOrder[currentTargetIndex];
+
+            document.querySelectorAll('.drop-target').forEach(target => {
+                const targetName = target.getAttribute('data-target');
+
+                // Xóa tất cả các class trạng thái cũ
+                target.classList.remove('active-target', 'inactive-target');
+
+                if (targetName === currentTargetId) {
+                    // Target hiện tại đang hoạt động
+                    target.classList.add('active-target');
+                    target.style.pointerEvents = 'auto'; // Cho phép kéo thả
+                } else if (droppedItemsInTarget[targetName] === requiredItemCounts[targetName]) {
+                    // Target đã hoàn thành
+                    target.style.pointerEvents = 'none'; // Đã hoàn thành, khóa lại
+                } else {
+                    // Target chưa đến lượt
+                    target.classList.add('inactive-target');
+                    target.style.pointerEvents = 'none'; // Khóa kéo thả
+                }
+            });
+        }
+
+        // --- HÀM XỬ LÝ ÂM THANH ---
+        function playSound(isCorrect) {
+            try {
+                const context = isCorrect ? correctSound : incorrectSound;
+                if (context.state === 'suspended') {
+                    context.resume();
+                }
+
+                const oscillator = context.createOscillator();
+                const gainNode = context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(context.destination);
+
+                if (isCorrect) {
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(600, context.currentTime); 
+                    gainNode.gain.setValueAtTime(0.5, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.2);
+                } else {
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.setValueAtTime(150, context.currentTime); 
+                    gainNode.gain.setValueAtTime(0.5, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.4);
+                }
+
+                oscillator.start();
+                oscillator.stop(context.currentTime + 0.5);
+            } catch (e) {
+                console.error("Lỗi khi phát âm thanh:", e);
+            }
+        }
+
+        // --- HÀM KHỞI TẠO VÀ HIỂN THỊ ---
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function createDraggableItems() {
+            const list = document.getElementById('draggable-list');
+            list.innerHTML = '';
+            
+            const shuffledData = [...gameData];
+            shuffleArray(shuffledData);
+
+            shuffledData.forEach(item => {
+                const div = document.createElement('div');
+                div.id = item.id;
+                div.textContent = item.text;
+                div.setAttribute('draggable', 'true');
+                div.setAttribute('data-answer', item.answer);
+                div.setAttribute('ondragstart', 'drag(event)');
+                
+                // Lấy ngẫu nhiên một màu nền sinh động và class text-color tương ứng
+                const randomColorClass = backgroundColors[Math.floor(Math.random() * backgroundColors.length)];
+                
+                // Gán màu nền sinh động cho item
+                div.className = `draggable-item px-3 py-2 m-1 border border-gray-300 rounded-lg shadow-sm text-sm font-medium ${randomColorClass}`;
+                
+                list.appendChild(div);
+            });
+        }
+
+        function updateTimer() {
+            seconds++;
+            const min = String(Math.floor(seconds / 60)).padStart(2, '0');
+            const sec = String(seconds % 60).padStart(2, '0');
+            document.getElementById('timer').textContent = `${min}:${sec}`;
+        }
+
+        function startGame() {
+            playerName = document.getElementById('player-name').value.trim();
+            playerClass = document.getElementById('player-class').value.trim();
+            const errorElement = document.getElementById('error-message');
+
+            if (!playerName || !playerClass) {
+                errorElement.classList.remove('hidden');
+                return;
+            }
+            errorElement.classList.add('hidden');
+
+            // Hiển thị thông tin người chơi
+            document.getElementById('player-info').textContent = `${playerName} - ${playerClass}`;
+            
+            // Ẩn màn hình bắt đầu, hiện màn hình chơi
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            // Khởi tạo logic tuần tự và điểm số
+            setupGameData();
+            currentTargetIndex = 0; // Luôn bắt đầu từ Glucose
+            score = 0;
+            seconds = 0;
+            droppedItemsCount = 0;
+            document.getElementById('score').textContent = score;
+            document.getElementById('finish-button-container').classList.add('hidden');
+
+            // Xóa các item đã thả trước đó và reset trạng thái của Target
+            document.querySelectorAll('.target-items').forEach(el => el.innerHTML = '');
+
+            createDraggableItems();
+            updateTargetStates(); // Cập nhật trạng thái lần đầu (chỉ Glucose active)
+
+            // Bắt đầu đồng hồ bấm giờ
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function resetGame() {
+            // Dừng đồng hồ
+            clearInterval(timerInterval);
+            // Hiện màn hình bắt đầu, ẩn màn hình kết quả
+            document.getElementById('end-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+
+            // Reset input (giữ lại tên đã nhập để tiện chơi lại)
+            document.getElementById('player-name').value = playerName;
+            document.getElementById('player-class').value = playerClass;
+        }
+
+        // --- HÀM XỬ LÝ KÉO THẢ (DRAG AND DROP) ---
+
+        function drag(ev) {
+            // Chỉ cho phép kéo các item chưa được thả
+            if (ev.target.getAttribute('draggable') === 'true') {
+                ev.dataTransfer.setData("text", ev.target.id);
+                // Thêm hiệu ứng cho item đang kéo
+                setTimeout(() => ev.target.style.opacity = '0.5', 0);
+            }
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            // Lấy target thực sự, tránh bị drop vào item con
+            let dropTarget = ev.target;
+            while (dropTarget && !dropTarget.classList.contains('drop-target')) {
+                dropTarget = dropTarget.parentElement;
+            }
+
+            if (!dropTarget) return;
+
+            // CHỈ cho phép kéo vào target hiện tại (ACTIVE)
+            if (dropTarget.classList.contains('active-target')) {
+                // Lấy màu RGB của Target để tạo hiệu ứng hover
+                const targetColor = getComputedStyle(dropTarget).getPropertyValue('--target-color-rgb');
+                if (targetColor) {
+                    dropTarget.style.setProperty('--target-color-rgb', targetColor.trim());
+                }
+                dropTarget.classList.add('drag-over');
+            } else {
+                 // Nếu cố gắng kéo vào target không active, không cho phép
+                 ev.dataTransfer.dropEffect = 'none';
+            }
+        }
+
+        function dragLeave(ev) {
+            if (ev.target.classList.contains('drop-target')) {
+                ev.target.classList.remove('drag-over');
+            }
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+            let dropTarget = ev.target;
+
+            // Tìm drop-target cha
+            while (dropTarget && !dropTarget.classList.contains('drop-target')) {
+                dropTarget = dropTarget.parentElement;
+            }
+
+            if (!dropTarget || !draggedElement) return;
+
+            // Xóa hiệu ứng drag over
+            dropTarget.classList.remove('drag-over');
+            
+            const correctAnswer = draggedElement.getAttribute('data-answer');
+            const targetCategory = dropTarget.getAttribute('data-target');
+            
+            // Xóa hiệu ứng opacity
+            draggedElement.style.opacity = '1';
+
+            // KIỂM TRA TUẦN TỰ: Chỉ chấp nhận drop vào target hiện tại
+            const currentTargetId = targetOrder[currentTargetIndex];
+            if (targetCategory !== currentTargetId) {
+                playSound(false); // Sai: báo hiệu không đúng thứ tự
+                
+                // Hiệu ứng đỏ ngắn cho Target bị sai thứ tự
+                dropTarget.classList.add('incorrect-feedback');
+                setTimeout(() => dropTarget.classList.remove('incorrect-feedback'), 500);
+                return; 
+            }
+            
+            // KIỂM TRA ĐÁP ÁN
+            if (correctAnswer === targetCategory) {
+                // ĐÚNG:
+                playSound(true);
+                
+                // Cập nhật giao diện: Sáng màu xanh
+                dropTarget.classList.add('correct-feedback');
+                setTimeout(() => dropTarget.classList.remove('correct-feedback'), 500);
+
+                // Di chuyển item vào target
+                const targetItemsContainer = dropTarget.querySelector('.target-items');
+                draggedElement.className = 'dropped-item';
+                draggedElement.setAttribute('draggable', 'false'); // Không cho kéo lại
+                draggedElement.removeAttribute('ondragstart');
+                targetItemsContainer.appendChild(draggedElement);
+                
+                // Cập nhật điểm và số lượng
+                score += 10;
+                document.getElementById('score').textContent = score;
+                droppedItemsCount++;
+                droppedItemsInTarget[targetCategory]++; // Tăng số lượng item đã thả cho chất hiện tại
+
+                // KIỂM TRA HOÀN THÀNH CHẤT HIỆN TẠI
+                if (droppedItemsInTarget[targetCategory] === requiredItemCounts[targetCategory]) {
+                    // Chuyển sang chất tiếp theo
+                    currentTargetIndex++;
+                    updateTargetStates();
+                }
+
+            } else {
+                // SAI: (vẫn trong target đúng thứ tự, nhưng item bị sai)
+                playSound(false);
+                
+                // Cập nhật giao diện: Hiện màu đỏ
+                draggedElement.classList.add('incorrect-feedback');
+                setTimeout(() => {
+                    draggedElement.classList.remove('incorrect-feedback');
+                    // Hoàn trả item về danh sách kéo thả (Draggable List)
+                    document.getElementById('draggable-list').appendChild(draggedElement);
+                    // Quan trọng: Phục hồi class màu nền ban đầu
+                    const originalItem = gameData.find(item => item.id === draggedElement.id);
+                    // Vì chúng ta dùng randomColorClass, cần tạo lại item để phục hồi màu. Cách đơn giản hơn: giữ nguyên màu và chỉ xóa hiệu ứng.
+                    // Lưu ý: item vẫn giữ nguyên màu nền ngẫu nhiên lúc ban đầu
+                }, 500);
+                
+                // Trừ điểm
+                if (score > 0) {
+                    score = Math.max(0, score - 5);
+                    document.getElementById('score').textContent = score;
+                }
+            }
+
+            // Kiểm tra kết thúc trò chơi (Tất cả items đã được thả)
+            if (droppedItemsCount === totalDraggableItems) {
+                document.getElementById('finish-button-container').classList.remove('hidden');
+            }
+        }
+
+        // Gán các sự kiện kéo thả cho các ô đích
+        document.querySelectorAll('.drop-target').forEach(target => {
+            target.addEventListener('dragover', allowDrop);
+            target.addEventListener('dragleave', dragLeave);
+            target.addEventListener('drop', drop);
+        });
+
+        function endGame(isFinished) {
+            clearInterval(timerInterval);
+
+            // Ẩn màn hình chơi, hiện màn hình kết quả
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+
+            const finalTimeDisplay = document.getElementById('timer').textContent;
+            
+            document.getElementById('final-player-info').textContent = `${playerName} - ${playerClass}`;
+            document.getElementById('final-score').textContent = `${score}/${totalDraggableItems * 10}`;
+            document.getElementById('final-time').textContent = `Thời gian hoàn thành: ${finalTimeDisplay}`;
+        }
+
+        // Bắt đầu khởi tạo giao diện khi tải xong
+        window.onload = function() {
+            // Đảm bảo màn hình bắt đầu được hiển thị trước
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.add('hidden');
+        };
+
+    </script>
+</body>
+</html>
